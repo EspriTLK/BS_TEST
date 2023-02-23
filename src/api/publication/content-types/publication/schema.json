@@ -19,7 +19,7 @@
     "content": {
       "type": "richtext"
     },
-    "Image": {
+    "image": {
       "type": "media",
       "multiple": true,
       "required": false,
@@ -31,8 +31,7 @@
       "type": "relation",
       "relation": "manyToOne",
       "target": "plugin::users-permissions.user",
-      "inversedBy": "publications",
-      "populate": true
+      "inversedBy": "publications"
     }
   }
 }

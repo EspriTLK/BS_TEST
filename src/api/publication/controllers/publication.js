@@ -6,7 +6,9 @@
 
 const { createCoreController } = require('@strapi/strapi').factories;
 
-module.exports = createCoreController('api::publication.publication', ({ strapi }) => ({
+const publicationApi = 'api::publication.publication'
+
+module.exports = createCoreController(publicationApi, ({ strapi }) => ({
 	async find(ctx) {
 		// some logic here
 		const currentUser = ctx.state.user
@@ -17,15 +19,15 @@ module.exports = createCoreController('api::publication.publication', ({ strapi 
 			return { data, meta };
 		}
 
-		if (currentUser.role.name === 'Edithor') {
-			const publications = await strapi.entityService.findMany('api::publication.publication', {
+		if (currentUser.role.name === 'Editor') {
+			const publications = await strapi.entityService.findMany(publicationApi, {
 				publicationState: "preview",
 			})
 
 			return { publications, meta }
 		}
 
-		const authorDraft = await strapi.entityService.findMany('api::publication.publication', {
+		const authorDraft = await strapi.entityService.findMany(publicationApi, {
 			publicationState: "preview",
 			filters: { author: currentUser.id, publishedAt: null }
 		})
@@ -34,6 +36,28 @@ module.exports = createCoreController('api::publication.publication', ({ strapi 
 
 		return { authorPub, meta }
 
+	},
+
+	async findOne(ctx) {
+		// some logic here
+		if (!ctx?.params) {
+			return
+		}
+
+		const { id } = ctx.params
+
+		const { publishedAt, author } = await strapi.entityService.findOne(publicationApi, id, { populate: { author: true } })
+
+		const currentUser = ctx.state.user
+		const isPublished = publishedAt !== null
+		const isAuthor = currentUser?.id === author.id
+		const isEditor = currentUser?.role.name === 'Editor'
+
+		if (!isPublished && (!currentUser || !isAuthor) && !isEditor) {
+			ctx.throw(403, 'You are not allowed to edit this publication')
+		}
+
+		return await super.findOne(ctx);
 	},
 
 	async create(ctx) {
@@ -59,17 +83,21 @@ module.exports = createCoreController('api::publication.publication', ({ strapi 
 
 		// some logic here
 		const { id } = ctx.params
-		const author = await strapi.entityService.findOne('api::publication.publication', id, { populate: { author: true } })
+		const { publishedAt, author } = await strapi.entityService.findOne(publicationApi, id, { populate: { author: true } })
 
-		if (ctx.state.user.id !== author.author.id && ctx.state.user.role.name !== 'Edithor') {
+		const currentUser = ctx.state.user
+		const isAuthor = currentUser?.id === author.id
+		const isEditor = currentUser?.role.name === 'Editor'
+
+		if (!isAuthor && !isEditor) {
 			ctx.throw(403, 'You are not allowed to edit this publication')
 		}
 
-		if (author.author.IsPublished === false && 'publishedAt' in ctx.request.body.data) {
+		if (author.canPublish === false && ctx.request.body.data.publish) {
 			ctx.throw(403, 'You are not allowed to published')
 		}
 
-		if ('publishedAt' in ctx.request.body.data && author.publishedAt === null) {
+		if (ctx.request.body.data.publish && publishedAt === null) {
 			ctx.request.body = {
 				data: {
 					...ctx.request.body.data,
@@ -78,10 +106,23 @@ module.exports = createCoreController('api::publication.publication', ({ strapi 
 			}
 		}
 
-		const response = await super.update(ctx);
-		// some more logic
+		return await super.update(ctx);
+	},
 
-		return response;
+	async delete(ctx) {
+		// some logic here
+		const { id } = ctx.params
+		const { author } = await strapi.entityService.findOne(publicationApi, id, { populate: { author: true } })
+
+		const currentUser = ctx.state.user
+		const isAuthor = currentUser?.id === author.id
+		const isEditor = currentUser?.role.name === 'Editor'
+
+		if (!isAuthor && !isEditor) {
+			ctx.throw(403, 'You are not allowed to remove this publication')
+		}
+
+		return await super.delete(ctx);
 	}
 })
 );
