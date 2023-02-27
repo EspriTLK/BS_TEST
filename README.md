@@ -38,7 +38,7 @@ After app runs you can use `strapi.postman_collection.json`. There are available
 
 ### Allowed actions: 
 
-1) Master admin should login into GUI `http://localhost:1337/admin` `login`: admin, `password`: admin. Don't forget to change password for this user and create new user with 'Editor' role. By default editors has flag `canPublish` - `true`.
+1) Master admin should login into GUI `http://localhost:1337/admin` `login`: `admin`, `password`: `5tMKbM#Mf-gww.d`. Don't forget to change password for this user and create new user with 'Editor' role. By default editors has flag `canPublish` - `true`.
 2) New editor can log in into API via endpoint `Login user` and fields `identifier` - username or email and `password`.
 3) Editor can create new author via endpoint `Create author` with required fields: `username`, `email`, `password`. Editor can set flag `canPublish` = `true` for author. By default this flag is `false`.
 4) Editors have access to endpoint `Edit author` for editing authors.
