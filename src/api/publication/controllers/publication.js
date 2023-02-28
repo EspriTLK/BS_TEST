@@ -13,28 +13,31 @@ module.exports = createCoreController(publicationApi, ({ strapi }) => ({
 		// some logic here
 		const currentUser = ctx.state.user
 
-		const { data, meta } = await super.find(ctx);
 		// some more logic
-		if (!currentUser) {
-			return { data, meta };
+		if (currentUser && currentUser.role.name === 'Editor') {
+			// const data = await strapi.entityService.findMany(publicationApi, {
+			// 	publicationState: "preview",
+			// })
+			const { data, meta } = await super.find({ ctx, publicationState: "preview" })
+
+
+			return { data, meta }
 		}
 
-		if (currentUser.role.name === 'Editor') {
-			const publications = await strapi.entityService.findMany(publicationApi, {
+		let { data, meta } = await super.find(ctx);
+
+		if (currentUser && currentUser.role.name === 'Author') {
+			const authorDraft = await strapi.entityService.findMany(publicationApi, {
 				publicationState: "preview",
+				filters: { author: currentUser.id, publishedAt: null }
 			})
 
-			return { publications, meta }
+			data = [...data, ...authorDraft]
 		}
 
-		const authorDraft = await strapi.entityService.findMany(publicationApi, {
-			publicationState: "preview",
-			filters: { author: currentUser.id, publishedAt: null }
-		})
+		return { data, meta };
 
-		const authorPub = [...data, ...authorDraft]
 
-		return { authorPub, meta }
 
 	},
 
@@ -93,7 +96,7 @@ module.exports = createCoreController(publicationApi, ({ strapi }) => ({
 			ctx.throw(403, 'You are not allowed to edit this publication')
 		}
 
-		if (author.canPublish === false && ctx.request.body.data.publish) {
+		if (isAuthor && author.canPublish === false && ctx.request.body.data.publish) {
 			ctx.throw(403, 'You are not allowed to published')
 		}
 

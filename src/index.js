@@ -18,31 +18,48 @@ module.exports = {
    */
   async bootstrap({ strapi }) {
     const entry = await strapi.db.query('plugin::users-permissions.role');
-    const roleId = (await entry.findMany()).length + 1;
     const getRoleId = async () => {
-      return (await entry.findMany()).length + 1
+      const roleId = (await entry.findMany())
+      const lastRoleId = roleId[roleId.length - 1].id
+      return lastRoleId + 1
     }
     const permissions = await strapi.db.query('plugin::users-permissions.permission');
-    const permId = (await permissions.findMany()).length + 1;
     const getPermId = async () => {
-      return (await permissions.findMany()).length
+      const permId = (await permissions.findMany());
+      const lastPermId = permId[permId.length - 1].id
+      return lastPermId + 1
     }
     const actions = ['create', 'update', 'delete', 'find', 'findOne']
 
     const author = await entry.findOne({ select: ['name'], where: { name: 'Author' } })
     const editor = await entry.findOne({ select: ['name'], where: { name: 'Editor' } })
+    const publicRole = await entry.findOne({ where: { name: 'Public' } })
+    const publicPermission = await permissions.findMany({ where: { $and: [{ role: publicRole.id, }, { action: { $contains: 'api::publication.publication' } }] } })
+
+    if (publicRole && publicPermission.length === 0) {
+      const permissionsToDelete = await permissions.findMany({ where: { role: publicRole.id, } })
+
+      for (let permission of permissionsToDelete) {
+        if (!permission.action.includes('callback')) {
+          await permissions.delete({ where: { id: permission.id } })
+        }
+      }
+
+      await permissions.create({ data: { id: (await getPermId()), action: `api::publication.publication.find`, role: { id: publicRole.id } } })
+      await permissions.create({ data: { id: (await getPermId()), action: `api::publication.publication.findOne`, role: { id: publicRole.id } } })
+    }
 
     if (!author) {
       const curRoleId = await getRoleId() || 3
       await entry.create({ data: { id: curRoleId, name: 'Author', description: 'Author role', type: 'author' } })
 
       for (let i = 0; i < actions.length; i++) {
-        await permissions.create({ data: { id: (await getPermId() + 1), action: `api::publication.publication.${actions[i]}`, role: { id: curRoleId } } })
+        await permissions.create({ data: { id: (await getPermId()), action: `api::publication.publication.${actions[i]}`, role: { id: curRoleId } } })
       }
 
-      await permissions.create({ data: { id: (await getPermId() + 1), action: `plugin::users-permissions.auth.changePassword`, role: { id: curRoleId } } })
-      await permissions.create({ data: { id: (await getPermId() + 1), action: `plugin::users-permissions.user.find`, role: { id: curRoleId } } })
-      await permissions.create({ data: { id: (await getPermId() + 1), action: `plugin::users-permissions.user.findOne`, role: { id: curRoleId } } })
+      await permissions.create({ data: { id: (await getPermId()), action: `plugin::users-permissions.auth.changePassword`, role: { id: curRoleId } } })
+      await permissions.create({ data: { id: (await getPermId()), action: `plugin::users-permissions.user.find`, role: { id: curRoleId } } })
+      await permissions.create({ data: { id: (await getPermId()), action: `plugin::users-permissions.user.findOne`, role: { id: curRoleId } } })
     }
 
     if (!editor) {
@@ -50,16 +67,16 @@ module.exports = {
       await entry.create({ data: { id: curRoleId, name: 'Editor', description: 'Editor role', type: 'editor' } })
 
       for (let i = 0; i < actions.length; i++) {
-        await permissions.create({ data: { id: (await getPermId() + 1), action: `api::publication.publication.${actions[i]}`, role: { id: curRoleId } } })
+        await permissions.create({ data: { id: (await getPermId()), action: `api::publication.publication.${actions[i]}`, role: { id: curRoleId } } })
 
       }
 
-      await permissions.create({ data: { id: (await getPermId() + 1), action: `plugin::users-permissions.auth.changePassword`, role: { id: curRoleId } } })
-      await permissions.create({ data: { id: (await getPermId() + 1), action: `plugin::users-permissions.auth.register`, role: { id: curRoleId } } })
-      await permissions.create({ data: { id: (await getPermId() + 1), action: `plugin::users-permissions.user.find`, role: { id: curRoleId } } })
-      await permissions.create({ data: { id: (await getPermId() + 1), action: `plugin::users-permissions.user.findOne`, role: { id: curRoleId } } })
-      await permissions.create({ data: { id: (await getPermId() + 1), action: `plugin::users-permissions.user.create`, role: { id: curRoleId } } })
-      await permissions.create({ data: { id: (await getPermId() + 1), action: `plugin::users-permissions.user.update`, role: { id: curRoleId } } })
+      await permissions.create({ data: { id: (await getPermId()), action: `plugin::users-permissions.auth.changePassword`, role: { id: curRoleId } } })
+      await permissions.create({ data: { id: (await getPermId()), action: `plugin::users-permissions.auth.register`, role: { id: curRoleId } } })
+      await permissions.create({ data: { id: (await getPermId()), action: `plugin::users-permissions.user.find`, role: { id: curRoleId } } })
+      await permissions.create({ data: { id: (await getPermId()), action: `plugin::users-permissions.user.findOne`, role: { id: curRoleId } } })
+      await permissions.create({ data: { id: (await getPermId()), action: `plugin::users-permissions.user.create`, role: { id: curRoleId } } })
+      await permissions.create({ data: { id: (await getPermId()), action: `plugin::users-permissions.user.update`, role: { id: curRoleId } } })
     }
 
     strapi.db.lifecycles.subscribe({
