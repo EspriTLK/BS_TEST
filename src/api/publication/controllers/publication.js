@@ -12,14 +12,19 @@ module.exports = createCoreController(publicationApi, ({ strapi }) => ({
 	async find(ctx) {
 		// some logic here
 		const currentUser = ctx.state.user
+		const { query } = ctx
 
 		// some more logic
 		if (currentUser && currentUser.role.name === 'Editor') {
-			// const data = await strapi.entityService.findMany(publicationApi, {
-			// 	publicationState: "preview",
-			// })
-			const { data, meta } = await super.find({ ctx, publicationState: "preview" })
+			const isPublicationState = query.publicationState === 'live' ? 'live' : 'preview'
+			const params = {
+				...ctx,
+				query: { ...query, publicationState: isPublicationState }
+			}
 
+			const result = await super.find(params)
+
+			const { data, meta } = result
 
 			return { data, meta }
 		}
@@ -27,12 +32,26 @@ module.exports = createCoreController(publicationApi, ({ strapi }) => ({
 		let { data, meta } = await super.find(ctx);
 
 		if (currentUser && currentUser.role.name === 'Author') {
-			const authorDraft = await strapi.entityService.findMany(publicationApi, {
-				publicationState: "preview",
-				filters: { author: currentUser.id, publishedAt: null }
-			})
+			// const authorDraft = await strapi.entityService.findMany(publicationApi, {
+			// 	publicationState: "preview",
+			// 	filters: { author: currentUser.id, publishedAt: null },
+			// 	...query
+			// })
+			const params = {
+				...ctx,
+				query: { ...query, publicationState: "preview", filters: { author: currentUser.id, publishedAt: null } }
+			}
+			const { data: authorDraft } = await super.find(params)
+			// const sanitizedDraft = await this.sanitizeOutput(authorDraft, ctx)
+			console.log('[DATA]', data);
 
+			// const sanitizeRespone = await this.transformResponse(sanitizedDraft)
+
+			// console.log('[DRAFT]', sanitizeRespone);
+			console.log('[DRAFT_FIRST]', authorDraft);
 			data = [...data, ...authorDraft]
+
+
 		}
 
 		return { data, meta };
