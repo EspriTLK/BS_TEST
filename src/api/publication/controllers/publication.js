@@ -29,37 +29,29 @@ module.exports = createCoreController(publicationApi, ({ strapi }) => ({
 			return { data, meta }
 		}
 
-		let { data, meta } = await super.find(ctx);
 		if (currentUser && currentUser.role.name === 'Author') {
-			// const params = {
-			// 	...ctx,
-			// 	query: {
-			// 		...query,
-			// 		publicationState: isPublicationState,
-			// 		filters: {
-			// 			...query.filters,
-			// 			$or: [
-			// 				{ author: currentUser.id, publishedAt: null },
-			// 				{ publishedAt: { $not: null } }
-			// 			]
-			// 		}
-			// 	}
-			// }
-			// const { data, meta } = await super.find(params)
-
-			// return { data, meta }
-
 			const params = {
 				...ctx,
-				query: { ...query, publicationState: "preview", filters: { ...query.filters, author: currentUser.id, publishedAt: null } }
+				query: {
+					...query,
+					publicationState: isPublicationState,
+					filters: {
+						...query.filters,
+						$or: [
+							{ author: currentUser.id, publishedAt: null },
+							{ publishedAt: { $not: null } }
+						]
+					}
+				}
 			}
-			const { data: authorDraft } = await super.find(params)
 
-			data = [...data, ...authorDraft]
+			const { data, meta } = await super.find(params)
 
+			return { data, meta }
 
 		}
-		// const { data, meta } = await super.find(ctx);
+
+		const { data, meta } = await super.find(ctx);
 
 		return { data, meta };
 
