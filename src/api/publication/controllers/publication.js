@@ -15,22 +15,18 @@ module.exports = createCoreController(publicationApi, ({ strapi }) => ({
 		const { query } = ctx
 		const isPublicationState = query.publicationState === 'live' ? 'live' : 'preview'
 
+		let params = ctx
+
 		// some more logic
 		if (currentUser && currentUser.role.name === 'Editor') {
-			const params = {
+			params = {
 				...ctx,
 				query: { ...query, publicationState: isPublicationState }
 			}
-
-			const result = await super.find(params)
-
-			const { data, meta } = result
-
-			return { data, meta }
 		}
 
 		if (currentUser && currentUser.role.name === 'Author') {
-			const params = {
+			params = {
 				...ctx,
 				query: {
 					...query,
@@ -44,14 +40,9 @@ module.exports = createCoreController(publicationApi, ({ strapi }) => ({
 					}
 				}
 			}
-
-			const { data, meta } = await super.find(params)
-
-			return { data, meta }
-
 		}
 
-		const { data, meta } = await super.find(ctx);
+		const { data, meta } = await super.find(params);
 
 		return { data, meta };
 
