@@ -10,39 +10,33 @@ const publicationApi = 'api::publication.publication'
 
 module.exports = createCoreController(publicationApi, ({ strapi }) => ({
 	async find(ctx) {
-		// some logic here
-		const currentUser = ctx.state.user
-		const { query } = ctx
+
+		const { query, state } = ctx
+		const currentUser = state.user
 		const isPublicationState = query.publicationState === 'live' ? 'live' : 'preview'
 
-		let params = ctx
-
-		// some more logic
 		if (currentUser && currentUser.role.name === 'Editor') {
-			params = {
-				...ctx,
-				query: { ...query, publicationState: isPublicationState }
+			ctx.query = {
+				...query,
+				publicationState: isPublicationState
 			}
 		}
 
 		if (currentUser && currentUser.role.name === 'Author') {
-			params = {
-				...ctx,
-				query: {
-					...query,
-					publicationState: isPublicationState,
-					filters: {
-						...query.filters,
-						$or: [
-							{ author: currentUser.id, publishedAt: null },
-							{ publishedAt: { $not: null } }
-						]
-					}
+			ctx.query = {
+				...query,
+				publicationState: isPublicationState,
+				filters: {
+					...query.filters,
+					$or: [
+						{ author: currentUser.id, publishedAt: { $null: true } },
+						{ publishedAt: { $notNull: true } }
+					]
 				}
 			}
 		}
 
-		const { data, meta } = await super.find(params);
+		const { data, meta } = await super.find(ctx);
 
 		return { data, meta };
 
@@ -51,25 +45,35 @@ module.exports = createCoreController(publicationApi, ({ strapi }) => ({
 	},
 
 	async findOne(ctx) {
-		// some logic here
-		if (!ctx?.params) {
+		const { query, state } = ctx
+		const params = {
+			...ctx,
+			query: {
+				...query,
+				populate: { author: true }
+			}
+		}
+
+		try {
+			const { data } = await super.findOne(params)
+			const { attributes } = data
+			const { publishedAt, author } = attributes
+
+			const currentUser = state.user
+			const isPublished = publishedAt !== null
+			const isAuthor = currentUser?.id === author.data.id
+			const isEditor = currentUser?.role.name === 'Editor'
+
+			if (!isPublished && (!currentUser || !isAuthor) && !isEditor) {
+				ctx.forbidden('You are not allowed to view this publication')
+			}
+
+			return await super.findOne(ctx);
+		} catch {
+
 			return
 		}
 
-		const { id } = ctx.params
-
-		const { publishedAt, author } = await strapi.entityService.findOne(publicationApi, id, { populate: { author: true } })
-
-		const currentUser = ctx.state.user
-		const isPublished = publishedAt !== null
-		const isAuthor = currentUser?.id === author.id
-		const isEditor = currentUser?.role.name === 'Editor'
-
-		if (!isPublished && (!currentUser || !isAuthor) && !isEditor) {
-			ctx.throw(403, 'You are not allowed to edit this publication')
-		}
-
-		return await super.findOne(ctx);
 	},
 
 	async create(ctx) {
