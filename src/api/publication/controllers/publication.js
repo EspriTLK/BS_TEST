@@ -46,7 +46,6 @@ module.exports = createCoreController(publicationApi, ({ strapi }) => ({
 
 	async findOne(ctx) {
 		// some logic here
-		// const qp = await this.sanitizeParams(ctx);
 		const { params, state } = ctx
 		const { id } = params
 		const currentUser = state.user
@@ -60,84 +59,74 @@ module.exports = createCoreController(publicationApi, ({ strapi }) => ({
 		}
 
 		if (currentUser) {
-			const { id } = currentUser
-			queryParams.where = {
-
-				$and: [
-					{ id },
-					{
-						$or:
-							[
-								{ author: currentUser },
-								{ author: { role: { name: 'Author' } } }
-							]
-					}
-				]
+			const { id: authorId, role } = currentUser
+			const { name: roleName } = role
+			if (roleName === 'Editor') {
+				queryParams.where = {
+					$and: [
+						{ id },
+						{
+							$or:
+								[
+									{ author: authorId },
+									{ author: { role: { name: 'Author' } } }
+								]
+						}
+					]
+				}
 			}
-		}
 
+			if (roleName === 'Author') {
+				queryParams.where = {
+					$and: [
+						{ id },
+						{
+							$or:
+								[
+									{ author: authorId },
+									{ publishedAt: { $notNull: true } }
+								]
+						}
+					]
+				}
+			}
+
+
+		}
 
 		const publication = await strapi.db.query(publicationApi).findOne(queryParams);
 		const sanitizedResults = await this.sanitizeOutput(publication, ctx);
-		console.log(publication);
-		// console.log(ctx.state.user.role.id);
-
+		// console.log(publication);
 		return this.transformResponse(sanitizedResults);
-
-
-		// const { id } = ctx.params
-
-		// const { publishedAt, author } = await strapi.entityService.findOne(publicationApi, id, { populate: { author: true } })
-
-		// const currentUser = ctx.state.user
-		// const isPublished = publishedAt !== null
-		// const isAuthor = currentUser?.id === author.id
-		// const isEditor = currentUser?.role.name === 'Editor'
-
-		// if (!isPublished && (!currentUser || !isAuthor) && !isEditor) {
-		// 	ctx.throw(403, 'You are not allowed to edit this publication')
+		// if (publication) {
+		// 	return await super.findOne(ctx);
 		// }
 
-		// return await super.findOne(ctx);
+		// return ctx.forbidden('oops')
+
+
 	},
 
 	// async findOne(ctx) {
 	// 	// some logic here
-	// 	if (!ctx?.params) {
-	// 		return
-	// 	}
-
-	// 	const { id } = ctx.params
-
-	// 	const { publishedAt, author } = await strapi.entityService.findOne(publicationApi, id, { populate: { author: true } })
-
-	// 	const currentUser = ctx.state.user
-	// 	const isPublished = publishedAt !== null
-	// 	const isAuthor = currentUser?.id === author.id
-	// 	const isEditor = currentUser?.role.name === 'Editor'
-
-	// 	if (!isPublished && (!currentUser || !isAuthor) && !isEditor) {
-	// 		ctx.throw(403, 'You are not allowed to edit this publication')
-	// 	}
-
-	// 	return await super.findOne(ctx);
-	// },
-
-	// async findOne(ctx) {
-	// 	// some logic here
-	// 	const currentUser = ctx.state.user
-
+	// 	const { params, state } = ctx
+	// 	const { id } = params
+	// 	const currentUser = state.user
 	// 	ctx.query = {
 	// 		...ctx.query,
-	// 		populate: { author: true }
+	// 		where: { author: ctx.state.user.id }
 	// 	}
 
+	// 	const response = await super.findOne(ctx);
 
-	// 	let resp = await super.findOne(ctx)
-	// 	resp.data.attributes.author = undefined
+	// 	const { data } = response
+	// 	if (currentUser) {
 
-	// 	return resp
+	// 	}
+	// 	// some more logic
+	// 	response.data.attributes.author = undefined
 
+	// 	return response;
 	// },
 
 	async create(ctx) {
@@ -160,49 +149,79 @@ module.exports = createCoreController(publicationApi, ({ strapi }) => ({
 	},
 
 	async update(ctx) {
-
 		// some logic here
-		const { id } = ctx.params
-		const { publishedAt, author } = await strapi.entityService.findOne(publicationApi, id, { populate: { author: true } })
+		const { params, state, request } = ctx
+		const { body } = request
+		const { id } = params
+		const currentUser = state.user
+		const queryParams = {
+			where: {
+				$and: [
+					{ id },
 
-		const currentUser = ctx.state.user
-		const isAuthor = currentUser?.id === author.id
-		const isEditor = currentUser?.role.name === 'Editor'
-
-		if (!isAuthor && !isEditor) {
-			ctx.throw(403, 'You are not allowed to edit this publication')
-		}
-
-		if (isAuthor && author.canPublish === false && ctx.request.body.data.publish) {
-			ctx.throw(403, 'You are not allowed to published')
-		}
-
-		if (ctx.request.body.data.publish && publishedAt === null) {
-			ctx.request.body = {
-				data: {
-					...ctx.request.body.data,
-					publishedAt: new Date()
-				}
+				]
 			}
 		}
 
-		return await super.update(ctx);
+		if (currentUser) {
+			const { id: authorId, role } = currentUser
+			if (role.name === 'Author') {
+				queryParams.where.$and.push({ author: authorId })
+
+				if (body.data.publish) {
+					queryParams.where.$and.push(
+						{ author: { canPublish: true } },
+						{ publishedAt: { $null: true } }
+					)
+				}
+			}
+
+			const publication = await strapi.db.query(publicationApi).findOne(queryParams)
+			console.log(publication);
+
+			if (publication) {
+
+				if (body.data.publish) {
+					body.data = {
+						...ctx.request.body.data,
+						publishedAt: new Date()
+					}
+
+				}
+				return await super.update(ctx);
+			}
+
+			return ctx.badRequest('publication not found or you can`t update it')
+
+		}
 	},
 
 	async delete(ctx) {
 		// some logic here
-		const { id } = ctx.params
-		const { author } = await strapi.entityService.findOne(publicationApi, id, { populate: { author: true } })
+		const { params, state } = ctx
+		const { id } = params
+		const currentUser = state.user
+		const { id: authorId, role } = currentUser
+		const queryParams = {
+			where: {
+				$and: [
+					{ id },
 
-		const currentUser = ctx.state.user
-		const isAuthor = currentUser?.id === author.id
-		const isEditor = currentUser?.role.name === 'Editor'
-
-		if (!isAuthor && !isEditor) {
-			ctx.throw(403, 'You are not allowed to remove this publication')
+				]
+			}
 		}
 
-		return await super.delete(ctx);
+		if (role.name === 'Author') {
+			queryParams.where.$and.push({ author: authorId })
+		}
+
+		const publication = await strapi.db.query(publicationApi).findOne(queryParams)
+
+		if (publication) {
+			return await super.delete(ctx);
+		}
+
+		return ctx.forbidden('publication not found or you can`t delete it')
 	}
 })
 );
