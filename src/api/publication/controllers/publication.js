@@ -6,26 +6,25 @@
 
 const { createCoreController } = require('@strapi/strapi').factories;
 
-const publicationApi = 'api::publication.publication'
+const PUB_API = 'api::publication.publication'
 
-module.exports = createCoreController(publicationApi, ({ strapi }) => ({
+const publicationController = ({ strapi }) => ({
 	async find(ctx) {
-
 		const { query, state } = ctx
 		const currentUser = state.user
-		const isPublicationState = query.publicationState === 'live' ? 'live' : 'preview'
+		const publicationState = query.publicationState === 'live' ? 'live' : 'preview'
 
 		if (currentUser && currentUser.role.name === 'Editor') {
 			ctx.query = {
 				...query,
-				publicationState: isPublicationState
+				publicationState
 			}
 		}
 
 		if (currentUser && currentUser.role.name === 'Author') {
 			ctx.query = {
 				...query,
-				publicationState: isPublicationState,
+				publicationState,
 				filters: {
 					...query.filters,
 					$or: [
@@ -39,16 +38,13 @@ module.exports = createCoreController(publicationApi, ({ strapi }) => ({
 		const { data, meta } = await super.find(ctx);
 
 		return { data, meta };
-
-
-
 	},
 
 	async findOne(ctx) {
-		// some logic here
 		const { params, state } = ctx
 		const { id } = params
 		const currentUser = state.user
+
 		const queryParams = {
 			where: {
 				$and: [
@@ -61,6 +57,7 @@ module.exports = createCoreController(publicationApi, ({ strapi }) => ({
 		if (currentUser) {
 			const { id: authorId, role } = currentUser
 			const { name: roleName } = role
+
 			if (roleName === 'Editor') {
 				queryParams.where = {
 					$and: [
@@ -90,146 +87,98 @@ module.exports = createCoreController(publicationApi, ({ strapi }) => ({
 					]
 				}
 			}
-
-
 		}
 
-		const publication = await strapi.db.query(publicationApi).findOne(queryParams);
+		const publication = await strapi.db.query(PUB_API).findOne(queryParams);
 		const sanitizedResults = await this.sanitizeOutput(publication, ctx);
-		// console.log(publication);
+
 		return this.transformResponse(sanitizedResults);
-		// if (publication) {
-		// 	return await super.findOne(ctx);
-		// }
-
-		// return ctx.forbidden('oops')
-
-
 	},
 
-	// async findOne(ctx) {
-	// 	// some logic here
-	// 	const { params, state } = ctx
-	// 	const { id } = params
-	// 	const currentUser = state.user
-	// 	params.query = {
-	// 		publishedAt: { $notNull: true }
-	// 	}
-
-
-	// 	const response = await super.findOne(ctx);
-
-	// 	const { data } = response
-	// 	if (currentUser) {
-
-	// 	}
-	// 	// some more logic
-	// 	// response.data.attributes.author = undefined
-	// 	console.log(params)
-	// 	return response;
-	// },
-
 	async create(ctx) {
-		// some logic here
-		const currentUser = ctx.state.user.id
+		const author = ctx.state.user.id
 		const newPublication = await ctx.request.body.data
 
 		ctx.request.body = {
 			data: {
 				...newPublication,
-				author: currentUser,
+				author,
 				publishedAt: null
 			}
 		}
 
 		const response = await super.create(ctx);
-		// some more logic
 
 		return response;
 	},
 
 	async update(ctx) {
-		// some logic here
 		const { params, state, request } = ctx
 		const { body } = request
 		const { id } = params
+
 		const currentUser = state.user
+
 		const sanitizedInput = await this.sanitizeInput(body.data, ctx)
+
 		const queryParams = {
-			where: {
-				$and: [
-					{ id },
+			where: { id },
+			data: { ...sanitizedInput }
+		}
 
-				]
-			},
-			data: {
-				...sanitizedInput
+		if (!currentUser) {
+			return
+		}
+
+		const { id: author, role } = currentUser
+
+		if (role.name === 'Author') {
+			queryParams.where.$and.push({ author })
+
+			if (body.data.publish) {
+				queryParams.where.$and.push(
+					{ author: { canPublish: true } },
+					{ publishedAt: { $null: true } }
+				)
 			}
 		}
 
-		if (currentUser) {
-			const { id: authorId, role } = currentUser
-			if (role.name === 'Author') {
-				queryParams.where.$and.push({ author: authorId })
+		const publication = await strapi.db.query(PUB_API).update(queryParams)
 
-				if (body.data.publish) {
-					queryParams.where.$and.push(
-						{ author: { canPublish: true } },
-						{ publishedAt: { $null: true } }
-					)
-				}
-			}
-
-			const publication = await strapi.db.query(publicationApi).update(queryParams)
-			console.log(publication);
-
-			if (publication) {
-				const sanitizePublication = await this.sanitizeOutput(publication, ctx)
-				// if (body.data.publish) {
-				// 	body.data = {
-				// 		...ctx.request.body.data,
-				// 		publishedAt: new Date()
-				// 	}
-
-				// }
-				// return await super.update(ctx);
-				return this.transformResponse(sanitizePublication)
-			}
-
+		if (!publication) {
 			return ctx.badRequest('publication not found or you can`t update it')
-
 		}
+
+		const sanitizePublication = await this.sanitizeOutput(publication, ctx)
+
+		return this.transformResponse(sanitizePublication)
 	},
 
 	async delete(ctx) {
-		// some logic here
 		const { params, state } = ctx
 		const { id } = params
-		const currentUser = state.user
-		const { id: authorId, role } = currentUser
-		const queryParams = {
-			where: {
-				$and: [
-					{ id },
 
-				]
-			}
+		const currentUser = state.user
+		const { id: author, role } = currentUser
+
+		const queryParams = {
+			where: { id }
 		}
 
 		if (role.name === 'Author') {
-			queryParams.where.$and.push({ author: authorId })
+			queryParams.where.$and.push({ author })
 		}
 
-		const publication = await strapi.db.query(publicationApi).delete(queryParams)
+		const publication = await strapi.db.query(PUB_API).delete(queryParams)
 
-		if (publication) {
-			// return await super.delete(ctx);
-			return ctx.send({
-				message: 'The publication was removed!'
-			}, 204)
+		if (!publication) {
+			return ctx.forbidden('publication not found or you can`t delete it')
 		}
 
-		return ctx.forbidden('publication not found or you can`t delete it')
+		return ctx.send({
+			message: 'The publication was removed!'
+		}, 204)
 	}
 })
-);
+
+module.exports = createCoreController(PUB_API, publicationController);
