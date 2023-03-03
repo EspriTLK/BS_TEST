@@ -55,7 +55,7 @@ const publicationController = ({ strapi }) => ({
 		}
 
 		if (currentUser) {
-			const { id: authorId, role } = currentUser
+			const { id: author, role } = currentUser
 			const { name: roleName } = role
 
 			if (roleName === 'Editor') {
@@ -65,7 +65,7 @@ const publicationController = ({ strapi }) => ({
 						{
 							$or:
 								[
-									{ author: authorId },
+									{ author },
 									{ author: { role: { name: 'Author' } } }
 								]
 						}
@@ -80,7 +80,7 @@ const publicationController = ({ strapi }) => ({
 						{
 							$or:
 								[
-									{ author: authorId },
+									{ author },
 									{ publishedAt: { $notNull: true } }
 								]
 						}
@@ -122,7 +122,11 @@ const publicationController = ({ strapi }) => ({
 		const sanitizedInput = await this.sanitizeInput(body.data, ctx)
 
 		const queryParams = {
-			where: { id },
+			where: {
+				$and: [
+					{ id },
+				]
+			},
 			data: { ...sanitizedInput }
 		}
 
@@ -162,7 +166,11 @@ const publicationController = ({ strapi }) => ({
 		const { id: author, role } = currentUser
 
 		const queryParams = {
-			where: { id }
+			where: {
+				$and: [
+					{ id },
+				]
+			}
 		}
 
 		if (role.name === 'Author') {
