@@ -112,10 +112,10 @@ module.exports = createCoreController(publicationApi, ({ strapi }) => ({
 	// 	const { params, state } = ctx
 	// 	const { id } = params
 	// 	const currentUser = state.user
-	// 	ctx.query = {
-	// 		...ctx.query,
-	// 		where: { author: ctx.state.user.id }
+	// 	params.query = {
+	// 		publishedAt: { $notNull: true }
 	// 	}
+
 
 	// 	const response = await super.findOne(ctx);
 
@@ -124,8 +124,8 @@ module.exports = createCoreController(publicationApi, ({ strapi }) => ({
 
 	// 	}
 	// 	// some more logic
-	// 	response.data.attributes.author = undefined
-
+	// 	// response.data.attributes.author = undefined
+	// 	console.log(params)
 	// 	return response;
 	// },
 
@@ -154,12 +154,16 @@ module.exports = createCoreController(publicationApi, ({ strapi }) => ({
 		const { body } = request
 		const { id } = params
 		const currentUser = state.user
+		const sanitizedInput = await this.sanitizeInput(body.data, ctx)
 		const queryParams = {
 			where: {
 				$and: [
 					{ id },
 
 				]
+			},
+			data: {
+				...sanitizedInput
 			}
 		}
 
@@ -176,19 +180,20 @@ module.exports = createCoreController(publicationApi, ({ strapi }) => ({
 				}
 			}
 
-			const publication = await strapi.db.query(publicationApi).findOne(queryParams)
+			const publication = await strapi.db.query(publicationApi).update(queryParams)
 			console.log(publication);
 
 			if (publication) {
+				const sanitizePublication = await this.sanitizeOutput(publication, ctx)
+				// if (body.data.publish) {
+				// 	body.data = {
+				// 		...ctx.request.body.data,
+				// 		publishedAt: new Date()
+				// 	}
 
-				if (body.data.publish) {
-					body.data = {
-						...ctx.request.body.data,
-						publishedAt: new Date()
-					}
-
-				}
-				return await super.update(ctx);
+				// }
+				// return await super.update(ctx);
+				return this.transformResponse(sanitizePublication)
 			}
 
 			return ctx.badRequest('publication not found or you can`t update it')
@@ -215,10 +220,13 @@ module.exports = createCoreController(publicationApi, ({ strapi }) => ({
 			queryParams.where.$and.push({ author: authorId })
 		}
 
-		const publication = await strapi.db.query(publicationApi).findOne(queryParams)
+		const publication = await strapi.db.query(publicationApi).delete(queryParams)
 
 		if (publication) {
-			return await super.delete(ctx);
+			// return await super.delete(ctx);
+			return ctx.send({
+				message: 'The publication was removed!'
+			}, 204)
 		}
 
 		return ctx.forbidden('publication not found or you can`t delete it')
