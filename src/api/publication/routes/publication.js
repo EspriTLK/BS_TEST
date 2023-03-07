@@ -7,10 +7,9 @@
 const { createCoreRouter } = require('@strapi/strapi').factories;
 
 module.exports = createCoreRouter('api::publication.publication', {
-	// config: {
-	// 	find: {
-	// 		// policies: ['api::publication.is-editor'],
-	// 		auth: false
-	// 	}
-	// }
+	config: {
+		findOne: {
+			policies: ['has-access'],
+		}
+	}
 });

@@ -13,6 +13,10 @@ const publicationController = ({ strapi }) => ({
 		const { query, state } = ctx
 		const currentUser = state.user
 		const publicationState = query.publicationState === 'live' ? 'live' : 'preview'
+		ctx.query = {
+			...query,
+			publicationState: 'live'
+		}
 
 		if (currentUser && currentUser.role.name === 'Editor') {
 			ctx.query = {
@@ -40,60 +44,65 @@ const publicationController = ({ strapi }) => ({
 		return { data, meta };
 	},
 
-	async findOne(ctx) {
-		const { params, state } = ctx
-		const { id } = params
-		const currentUser = state.user
+	// async findOne(ctx) {
+	// 	const { params, state } = ctx
+	// 	const { id } = params
+	// 	const currentUser = state.user
 
-		const queryParams = {
-			where: {
-				$and: [
-					{ id },
-					{ publishedAt: { $notNull: true } }
-				]
-			}
-		}
+	// 	const queryParams = {
+	// 		where: {
+	// 			$and: [
+	// 				{ id },
+	// 				{ publishedAt: { $notNull: true } }
+	// 			]
+	// 		}
+	// 	}
 
-		if (currentUser) {
-			const { id: author, role } = currentUser
-			const { name: roleName } = role
+	// 	if (currentUser) {
+	// 		const { id: author, role } = currentUser
+	// 		const { name: roleName } = role
 
-			if (roleName === 'Editor') {
-				queryParams.where = {
-					$and: [
-						{ id },
-						{
-							$or:
-								[
-									{ author },
-									{ author: { role: { name: 'Author' } } }
-								]
-						}
-					]
-				}
-			}
+	// 		if (roleName === 'Editor') {
+	// 			queryParams.where = {
+	// 				$and: [
+	// 					{ id },
+	// 					{
+	// 						$or:
+	// 							[
+	// 								{ author },
+	// 								{ author: { role: { name: 'Author' } } }
+	// 							]
+	// 					}
+	// 				]
+	// 			}
+	// 		}
 
-			if (roleName === 'Author') {
-				queryParams.where = {
-					$and: [
-						{ id },
-						{
-							$or:
-								[
-									{ author },
-									{ publishedAt: { $notNull: true } }
-								]
-						}
-					]
-				}
-			}
-		}
+	// 		if (roleName === 'Author') {
+	// 			queryParams.where = {
+	// 				$and: [
+	// 					{ id },
+	// 					{
+	// 						$or:
+	// 							[
+	// 								{ author },
+	// 								{ publishedAt: { $notNull: true } }
+	// 							]
+	// 					}
+	// 				]
+	// 			}
+	// 		}
+	// 	}
 
-		const publication = await strapi.db.query(PUB_API).findOne(queryParams);
-		const sanitizedResults = await this.sanitizeOutput(publication, ctx);
+	// 	const publication = await strapi.db.query(PUB_API).findOne(queryParams);
 
-		return this.transformResponse(sanitizedResults);
-	},
+	// 	if (!publication) {
+	// 		ctx.notFound('publication not found')
+	// 	}
+	// 	return await super.findOne(ctx)
+	// const sanitizedResults = await this.sanitizeOutput(publication, ctx);
+
+	// return this.transformResponse(sanitizedResults);
+	// },
 
 	async create(ctx) {
 		const author = ctx.state.user.id
@@ -180,7 +189,7 @@ const publicationController = ({ strapi }) => ({
 		const publication = await strapi.db.query(PUB_API).delete(queryParams)
 
 		if (!publication) {
-			return ctx.forbidden('publication not found or you can`t delete it')
+			return ctx.badRequest('publication not found or you can`t delete it')
 		}
 
 		return ctx.send({
