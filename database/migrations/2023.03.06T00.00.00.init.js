@@ -1,8 +1,30 @@
 'use strict'
 
 async function up(knex) {
-	knex.schema.createTable('up_roles')
-	knex.schema.createTable('up_permissions_role_links')
+	knex.schema.createTable('up_roles', function (table) {
+		table.increments()
+		table.string('name')
+		table.string('description')
+		table.string('type')
+		table.timestamps('created_at')
+		table.timestamps('updated_at')
+		table.integer('created_by_id')
+		table.integer('updated_by_id')
+	})
+	knex.schema.createTable('up_permissions', function (table) {
+		table.increments()
+		table.string('action')
+		table.timestamps('created_at')
+		table.timestamps('updated_at')
+		table.integer('created_by_id')
+		table.integer('updated_by_id')
+	})
+	knex.schema.createTable('up_permissions_role_links', function (table) {
+		table.increments()
+		table.integer('permission_id')
+		table.integer('role_id')
+		table.float('permission_order')
+	})
 	await knex.from('up_roles').insert([
 		{ name: 'Editor', description: 'Editor role', type: 'editor', created_at: new Date(), updated_at: new Date() },
 		{ name: 'Author', description: 'Author role', type: 'author', created_at: new Date(), updated_at: new Date() }
