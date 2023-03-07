@@ -1,6 +1,8 @@
 'use strict'
 
 async function up(knex) {
+	knex.schema.createTable('up_roles')
+	knex.schema.createTable('up_permissions_role_links')
 	await knex.from('up_roles').insert([
 		{ name: 'Editor', description: 'Editor role', type: 'editor', created_at: new Date(), updated_at: new Date() },
 		{ name: 'Author', description: 'Author role', type: 'author', created_at: new Date(), updated_at: new Date() }
