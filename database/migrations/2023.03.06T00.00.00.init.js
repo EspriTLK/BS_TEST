@@ -1,31 +1,34 @@
 'use strict'
 
 async function up(knex) {
-	knex.schema.createTable('up_roles', function (table) {
+	await knex.schema.createTable('up_roles', function (table) {
 		table.increments()
 		table.string('name')
 		table.string('description')
 		table.string('type')
-		table.timestamps('created_at')
-		table.timestamps('updated_at')
+		table.timestamps()
 		table.integer('created_by_id')
 		table.integer('updated_by_id')
 	})
-	knex.schema.createTable('up_permissions', function (table) {
+
+	await knex.schema.createTable('up_permissions', function (table) {
 		table.increments()
 		table.string('action')
-		table.timestamps('created_at')
-		table.timestamps('updated_at')
+		table.timestamps()
 		table.integer('created_by_id')
 		table.integer('updated_by_id')
 	})
-	knex.schema.createTable('up_permissions_role_links', function (table) {
+
+	await knex.schema.createTable('up_permissions_role_links', function (table) {
 		table.increments()
 		table.integer('permission_id')
 		table.integer('role_id')
 		table.float('permission_order')
 	})
+
 	await knex.from('up_roles').insert([
+		{ name: 'Authenticated', description: 'Default role given to authenticated user.', type: 'authenticated', created_at: new Date(), updated_at: new Date() },
+		{ name: 'Public', description: 'Default role given to unauthenticated user.', type: 'public', created_at: new Date(), updated_at: new Date() },
 		{ name: 'Editor', description: 'Editor role', type: 'editor', created_at: new Date(), updated_at: new Date() },
 		{ name: 'Author', description: 'Author role', type: 'author', created_at: new Date(), updated_at: new Date() }
 	])
@@ -46,6 +49,7 @@ async function up(knex) {
 		.del()
 
 	const PUBLIC_ROLE_PERMISSIONS = [
+		{ action: 'plugin::users-permissions.auth.callback', created_at: new Date(), updated_at: new Date() },
 		{ action: 'api::publication.publication.find', created_at: new Date(), updated_at: new Date() },
 		{ action: 'api::publication.publication.findOne', created_at: new Date(), updated_at: new Date() },
 	]
