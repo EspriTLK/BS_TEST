@@ -53,7 +53,7 @@ async function up(knex) {
 	const authorRole = await knex
 		.from('up_roles')
 		.where('name', 'Author')
-		.than(async function (role) {
+		.then(async function (role) {
 			if (role.length === 0) {
 				return await knex.from('up_roles').insert([
 					{ name: 'Author', description: 'Author role', type: 'author', created_at: new Date(), updated_at: new Date() }
@@ -62,7 +62,7 @@ async function up(knex) {
 		});
 	const editorRole = await knex.from('up_roles')
 		.where('name', 'Editor')
-		.than(async function (role) {
+		.then(async function (role) {
 			if (role.length === 0) {
 				return await knex.from('up_roles').insert([
 					{ name: 'Editor', description: 'Editor role', type: 'editor', created_at: new Date(), updated_at: new Date() }
