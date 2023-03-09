@@ -15,13 +15,14 @@ async function up(knex) {
 				table.integer('created_by_id')
 				table.integer('updated_by_id')
 			})
-				.then(
+				.then(async () => {
 					await knex.from('up_roles').insert([
 						{ name: 'Authenticated', description: 'Default role given to authenticated user.', type: 'authenticated', created_at: new Date(), updated_at: new Date() },
 						{ name: 'Public', description: 'Default role given to unauthenticated user.', type: 'public', created_at: new Date(), updated_at: new Date() },
 						// { name: 'Editor', description: 'Editor role', type: 'editor', created_at: new Date(), updated_at: new Date() },
 						// { name: 'Author', description: 'Author role', type: 'author', created_at: new Date(), updated_at: new Date() }
 					])
+				}
 				)
 		}
 	})
@@ -52,8 +53,8 @@ async function up(knex) {
 	const authorRole = await knex
 		.from('up_roles')
 		.where('name', 'Author')
-		.than(async function (exists) {
-			if (!exists) {
+		.than(async function (role) {
+			if (role.length === 0) {
 				return await knex.from('up_roles').insert([
 					{ name: 'Author', description: 'Author role', type: 'author', created_at: new Date(), updated_at: new Date() }
 				])
@@ -61,8 +62,8 @@ async function up(knex) {
 		});
 	const editorRole = await knex.from('up_roles')
 		.where('name', 'Editor')
-		.than(async function (exists) {
-			if (!exists) {
+		.than(async function (role) {
+			if (role.length === 0) {
 				return await knex.from('up_roles').insert([
 					{ name: 'Editor', description: 'Editor role', type: 'editor', created_at: new Date(), updated_at: new Date() }
 				])
