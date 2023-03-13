@@ -55,18 +55,23 @@ async function up(knex) {
 		.where('name', 'Author')
 		.then(async function (role) {
 			if (role.length === 0) {
-				return await knex.from('up_roles').insert([
-					{ name: 'Author', description: 'Author role', type: 'author', created_at: new Date(), updated_at: new Date() }
-				])
+				return await knex.from('up_roles')
+					.returning(['id', 'name'])
+					.insert([
+						{ name: 'Author', description: 'Author role', type: 'author', created_at: new Date(), updated_at: new Date() }
+					])
 			}
 		});
+
 	const editorRole = await knex.from('up_roles')
 		.where('name', 'Editor')
 		.then(async function (role) {
 			if (role.length === 0) {
-				return await knex.from('up_roles').insert([
-					{ name: 'Editor', description: 'Editor role', type: 'editor', created_at: new Date(), updated_at: new Date() }
-				])
+				return await knex.from('up_roles')
+					.returning(['id', 'name'])
+					.insert([
+						{ name: 'Editor', description: 'Editor role', type: 'editor', created_at: new Date(), updated_at: new Date() }
+					])
 			}
 		});;
 	const publicRole = await knex.from('up_roles').where('name', 'Public');
