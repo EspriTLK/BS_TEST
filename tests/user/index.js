@@ -69,18 +69,6 @@ it("login user - error", async () => {
 		})
 })
 
-// it('should forbidden to register for public role', () => {
-// 	request(strapi.server.httpServer)
-// 		.post("/api/auth/local/register")
-// 		.set("accept", "application/json")
-// 		.set("Content-Type", "application/json")
-// 		.send({
-// 			username: testUserRegister.username,
-// 			password: testUserRegister.password,
-// 			email: testUserRegister.email
-// 		})
-// 		.expect(403)
-// })
 it('Register user by Editor - success', async () => {
 	const user = await strapi.plugins["users-permissions"].services.user.add({
 		...mockEditorUser,
@@ -194,7 +182,7 @@ it('Author change password - success', async () => {
 		})
 })
 
-it('Author change password - error', async () => {
+it('Author change password with incorrect data - error', async () => {
 	const user = await strapi.query("plugin::users-permissions.user").findOne({ where: { username: mockUserData.username } })
 
 	const jwt = strapi.plugins['users-permissions'].services.jwt.issue({
@@ -217,3 +205,32 @@ it('Author change password - error', async () => {
 			expect(data.body.error.name).toBe("ValidationError")
 		})
 })
+
+it('Edit user by Editor - success', async () => {
+	const user = await strapi.query("plugin::users-permissions.user").findOne({ where: { username: mockEditorUser.username } })
+	const userToEdit = await strapi.query("plugin::users-permissions.user").findOne({ where: { username: mockUserData.username } })
+
+	const jwt = strapi.plugins['users-permissions'].services.jwt.issue({
+		id: user.id
+	})
+
+	await request(strapi.server.httpServer)
+		.put(`/api/users/${userToEdit.id}`)
+		.set("accept", "application/json")
+		.set("Content-Type", "application/json")
+		.set("Authorization", `Bearer ${jwt}`)
+		.send({
+			canPublish: true
+		})
+		.expect(200)
+		.then((data) => {
+			expect(data.body.id).toBe(userToEdit.id)
+			expect(data.body.canPublish).toBeTruthy()
+		})
+})
+
+// it('Register by Public role - error', () => {
+// 	request(strapi.server.httpServer)
+// 		.post("/api/auth/local/register")
+// 		.expect(403)
+// })
