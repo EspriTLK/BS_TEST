@@ -229,8 +229,9 @@ it('Edit user by Editor - success', async () => {
 		})
 })
 
-// it('Register by Public role - error', () => {
-// 	request(strapi.server.httpServer)
-// 		.post("/api/auth/local/register")
-// 		.expect(403)
-// })
+it('Register by Public role - error', async () => {
+	const response = await request(strapi.server.httpServer)
+	response
+		.post("/api/auth/local/register")
+		.expect(403)
+})

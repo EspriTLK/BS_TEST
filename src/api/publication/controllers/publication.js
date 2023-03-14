@@ -153,7 +153,12 @@ const publicationController = ({ strapi }) => ({
 					{ author: { canPublish: true } },
 					{ publishedAt: { $null: true } }
 				)
+				queryParams.data.publishedAt = Date.now()
 			}
+		}
+
+		if (role.name === 'Editor' && body.data.publish) {
+			queryParams.data.publishedAt = Date.now()
 		}
 
 		const publication = await strapi.db.query(PUB_API).update(queryParams)
